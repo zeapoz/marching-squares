@@ -119,7 +119,11 @@ function lerpPos(v0, v1) {
     if (v0 == v1) {
         return;
     }
-    return ((threshold - v0) / (v1 - v0)) * TILESIZE;
+    if (v0 > v1) {
+        return ((threshold - v0) / (v1 - v0)) * TILESIZE;
+    } else {
+        return ((v0 - threshold) / (v0 - v1)) * TILESIZE;
+    }
 }
 
 function lerp(v0, v1, t) {
