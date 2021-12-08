@@ -4,14 +4,15 @@ canvas.width = innerWidth;
 canvas.height = innerHeight;
 context.strokeStyle = "#FFFFFF";
 
-const TILESIZE = canvas.width / 100;
-const INTERPOLATE = false;
+const TILESIZE = canvas.width / 50;
+const INTERPOLATE = true;
 const SHOWPOINTS = false;
 
-const TIMESTEP = 0.001;
+const UPDATE = true;
+const TIMESTEP = 100;
 
 let squares = [];
-let level = 0.8;
+let threshold = 0.5;
 
 class Point {
     constructor(x, y) {
@@ -21,21 +22,30 @@ class Point {
 }
 
 class Square {
-    constructor(value, x, y) {
+    constructor(value, x, y, neighbourX, neighbourY, neighbourXY) {
         this.value = value;
+        this.x = x;
+        this.y = y;
         this.checkSolid();
-        if (!INTERPOLATE) {
-            this.a = new Point(x*TILESIZE - TILESIZE*0.5, y*TILESIZE - TILESIZE);
-            this.b = new Point(x*TILESIZE, y*TILESIZE - TILESIZE*0.5);
-            this.c = new Point(x*TILESIZE - TILESIZE*0.5, y*TILESIZE);
-            this.d = new Point(x*TILESIZE - TILESIZE, y*TILESIZE - TILESIZE*0.5);
+        if (INTERPOLATE) {
+            this.updateIsos(neighbourX, neighbourY, neighbourXY);
+        } else {
+            this.a = new Point(this.x*TILESIZE - TILESIZE*0.5, this.y*TILESIZE - TILESIZE);
+            this.b = new Point(this.x*TILESIZE, this.y*TILESIZE - TILESIZE*0.5);
+            this.c = new Point(this.x*TILESIZE - TILESIZE*0.5, this.y*TILESIZE);
+            this.d = new Point(this.x*TILESIZE - TILESIZE, this.y*TILESIZE - TILESIZE*0.5);
         }
     }
 
     checkSolid() {
-        if (!INTERPOLATE) {
-            this.solid = this.value > level ? 1 : 0;
-        }
+        this.solid = this.value < threshold ? 1 : 0;
+    }
+
+    updateIsos(neighbourX, neighbourY, neighbourXY) {
+        this.a = new Point(this.x*TILESIZE - lerpPos(neighbourXY, neighbourY), this.y*TILESIZE - TILESIZE);
+        this.b = new Point(this.x*TILESIZE, this.y*TILESIZE - lerpPos(neighbourY, this.value));
+        this.c = new Point(this.x*TILESIZE - lerpPos(neighbourX, this.value), this.y*TILESIZE);
+        this.d = new Point(this.x*TILESIZE - TILESIZE, this.y*TILESIZE - lerpPos(neighbourXY, neighbourX));
     }
 }
 
@@ -45,17 +55,25 @@ for (let i = 0; i <= canvas.width / TILESIZE; i++) {
     for (let j = 0; j <= canvas.height / TILESIZE; j++) {
         let valueAtPoint = Math.random();
 
-        let s = new Square(valueAtPoint, i, j);
-        squares[i][j] = s;
+        if (!INTERPOLATE || i == 0 || j == 0) {
+            let s = new Square(valueAtPoint, i, j);
+            squares[i][j] = s;
+        } else {
+            let s = new Square(valueAtPoint, i, j, squares[i - 1][j].value, squares[i][j - 1].value, squares[i - 1][j - 1].value);
+            squares[i][j] = s;
+        }
     }
 }
 
 function updateSquares() {
     for (let i = 0; i <= canvas.width / TILESIZE; i++) {
         for (let j = 0; j <= canvas.height / TILESIZE; j++) {
-            squares[i][j].value += TIMESTEP;
-            if (!INTERPOLATE) {
-                squares[i][j].checkSolid();
+            if (squares[i][j].value < 1) {
+                squares[i][j].value += TIMESTEP / 100000;
+            }
+            squares[i][j].checkSolid();
+            if (INTERPOLATE && !(i == 0 || j == 0)) {
+                squares[i][j].updateIsos(squares[i - 1][j].value, squares[i][j - 1].value, squares[i - 1][j - 1].value);
             }
         }
     }
@@ -85,15 +103,24 @@ function drawMarchingSquares() {
 }
 drawMarchingSquares();
 
-setInterval(function() {
-    // Clear screen
-    context.fillStyle = "#000000";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    // Update squares values
-    updateSquares();
-    // Marcing Squares algorithm
-    drawMarchingSquares();
-}, 100);
+if (UPDATE) {
+    setInterval(function() {
+        // Clear screen
+        context.fillStyle = "#000000";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        // Update squares values
+        updateSquares();
+        // Marching Squares algorithm
+        drawMarchingSquares();
+    }, TIMESTEP);
+}
+
+function lerpPos(v0, v1) {
+    if (v0 == v1) {
+        return;
+    }
+    return ((threshold - v0) / (v1 - v0)) * TILESIZE;
+}
 
 function lerp(v0, v1, t) {
     return (1 - t) * v0 + t * v1;
