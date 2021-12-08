@@ -1,18 +1,99 @@
 canvas = document.getElementById("canvas");
 context = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 context.strokeStyle = "#FFFFFF";
 
-const TILESIZE = 50;
-let values = [];
+const TILESIZE = canvas.width / 100;
+const INTERPOLATE = false;
+const SHOWPOINTS = false;
 
-for (let i = 0; i < canvas.height; i += TILESIZE) {
-    values[i] = [];
-    for (let j = 0; j < canvas.width; j += TILESIZE) {
-        let valueAtPoint = Math.random();
-        values[i][j] = valueAtPoint;
-        drawPoint(i, j, TILESIZE / 5, valueAtPoint);
+const TIMESTEP = 0.001;
+
+let squares = [];
+let level = 0.8;
+
+class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
     }
 }
+
+class Square {
+    constructor(value, x, y) {
+        this.value = value;
+        this.checkSolid();
+        if (!INTERPOLATE) {
+            this.a = new Point(x*TILESIZE - TILESIZE*0.5, y*TILESIZE - TILESIZE);
+            this.b = new Point(x*TILESIZE, y*TILESIZE - TILESIZE*0.5);
+            this.c = new Point(x*TILESIZE - TILESIZE*0.5, y*TILESIZE);
+            this.d = new Point(x*TILESIZE - TILESIZE, y*TILESIZE - TILESIZE*0.5);
+        }
+    }
+
+    checkSolid() {
+        if (!INTERPOLATE) {
+            this.solid = this.value > level ? 1 : 0;
+        }
+    }
+}
+
+// Assign values and initialize squares
+for (let i = 0; i <= canvas.width / TILESIZE; i++) {
+    squares[i] = [];
+    for (let j = 0; j <= canvas.height / TILESIZE; j++) {
+        let valueAtPoint = Math.random();
+
+        let s = new Square(valueAtPoint, i, j);
+        squares[i][j] = s;
+    }
+}
+
+function updateSquares() {
+    for (let i = 0; i <= canvas.width / TILESIZE; i++) {
+        for (let j = 0; j <= canvas.height / TILESIZE; j++) {
+            squares[i][j].value += TIMESTEP;
+            if (!INTERPOLATE) {
+                squares[i][j].checkSolid();
+            }
+        }
+    }
+}
+
+function drawMarchingSquares() {
+    // March through squares and draw shape
+    for (let i = 0; i <= canvas.width / TILESIZE; i++) {
+        for (let j = 0; j <= canvas.height / TILESIZE; j++) {
+            // Debug points
+            if (SHOWPOINTS) {
+                if (INTERPOLATE) {
+                    drawPoint(i * TILESIZE, j * TILESIZE, TILESIZE / 10, squares[i][j].value);
+                } else {
+                    drawPoint(i * TILESIZE, j * TILESIZE, TILESIZE / 10, squares[i][j].solid);
+                }    
+            }
+            // Check out of bounds
+            if (i == 0 || j == 0) {
+                continue;
+            }
+            // Lookup shape and draw
+            index = 8*squares[i][j].solid + 4*squares[i - 1][j].solid + 2*squares[i][j - 1].solid + 1*squares[i - 1][j - 1].solid;
+            draw_shape(index, squares[i][j]);
+        }
+    }
+}
+drawMarchingSquares();
+
+setInterval(function() {
+    // Clear screen
+    context.fillStyle = "#000000";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    // Update squares values
+    updateSquares();
+    // Marcing Squares algorithm
+    drawMarchingSquares();
+}, 100);
 
 function lerp(v0, v1, t) {
     return (1 - t) * v0 + t * v1;
@@ -25,16 +106,74 @@ function calculatePointColor(v) {
     return "#" + hexColor.repeat(3);
 }
 
-function drawLine(x1, y1, x2, y2) {
+function draw_shape(index, s) {
+    switch (index) {
+        case 0:
+            break;
+        // Single point cases
+        case 1:
+            drawLine(s.a, s.d);
+            break;
+        case 2:
+            drawLine(s.a, s.b);
+            break;
+        case 4:
+            drawLine(s.c, s.d);
+            break;
+        case 8:
+            drawLine(s.b, s.c);
+            break;
+        case 3:
+            drawLine(s.b, s.d);
+            break;
+        case 5:
+            drawLine(s.a, s.c);
+            break;
+        case 10:
+            drawLine(s.a, s.c);
+            break;
+        case 12:
+            drawLine(s.b, s.d);
+            break;
+        // Two point cases
+        case 6:
+            drawLine(s.a, s.d);
+            drawLine(s.b, s.c);
+            break;
+        case 9:
+            drawLine(s.a, s.b);
+            drawLine(s.c, s.d);
+            break;
+        // Three point cases
+        case 7:
+            drawLine(s.b, s.c);
+            break;
+        case 11:
+            drawLine(s.c, s.d);
+            break;
+        case 13:
+            drawLine(s.a, s.b);
+            break;
+        case 14:
+            drawLine(s.a, s.d);
+            break;
+        case 15:
+            break;
+        default:
+            console.log("Error.");
+    }
+}
+
+function drawLine(a, b) {
     context.beginPath();
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
+    context.moveTo(a.x, a.y);
+    context.lineTo(b.x, b.y);
     context.stroke();
 }
 
 function drawPoint(x, y, r, v) {
     context.fillStyle = calculatePointColor(v);
     context.beginPath();
-    context.arc(x + TILESIZE / 2, y + TILESIZE / 2, r, 0, 2 * Math.PI);
+    context.arc(x, y, r, 0, 2 * Math.PI);
     context.fill();
 }
