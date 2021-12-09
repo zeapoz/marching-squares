@@ -42,10 +42,10 @@ class Square {
     }
 
     updateIsos(neighbourX, neighbourY, neighbourXY) {
-        this.a = new Point(this.x*TILESIZE - lerpPos(neighbourXY, neighbourY), this.y*TILESIZE - TILESIZE);
-        this.b = new Point(this.x*TILESIZE, this.y*TILESIZE - lerpPos(neighbourY, this.value));
-        this.c = new Point(this.x*TILESIZE - lerpPos(neighbourX, this.value), this.y*TILESIZE);
-        this.d = new Point(this.x*TILESIZE - TILESIZE, this.y*TILESIZE - lerpPos(neighbourXY, neighbourX));
+        this.a = new Point((this.x - 1)*TILESIZE + lerpPos(neighbourXY, neighbourY), this.y*TILESIZE - TILESIZE);
+        this.b = new Point(this.x*TILESIZE, (this.y - 1)*TILESIZE + lerpPos(neighbourY, this.value));
+        this.c = new Point((this.x - 1)*TILESIZE + lerpPos(neighbourX, this.value), this.y*TILESIZE);
+        this.d = new Point(this.x*TILESIZE - TILESIZE, (this.y - 1)*TILESIZE + lerpPos(neighbourXY, neighbourX));
     }
 }
 
